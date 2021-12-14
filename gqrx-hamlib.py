@@ -32,11 +32,12 @@ import socket
 import sys
 import time
 
-TCP_IP = "localhost"
+RIG_IP = "192.168.1.109"
 RIG_PORT = 4532
-GQRX_PORT = 7356
+QUISK_IP = "127.0.0.1"
+QUISK_PORT = 4575
 
-MESSAGE = "f\n"
+#MESSAGE = "f\n"
 
 forever = 1
 rig_freq = 0
@@ -44,11 +45,11 @@ gqrx_freq = 0
 old_rig_freq = 0
 old_gqrx_freq = 0
 
-def getfreq(PORT):
+def getfreq(SERVER, PORT, MESSAGE):
     sock = socket.socket(socket.AF_INET, 
                      socket.SOCK_STREAM) 
     # Bind the socket to the port
-    server_address = (TCP_IP, PORT)
+    server_address = (SERVER, PORT)
     sock.connect(server_address)
     sock.sendall(MESSAGE)
     # Look for the response
@@ -64,7 +65,7 @@ def setfreq(PORT, freq):
     sock = socket.socket(socket.AF_INET, 
                      socket.SOCK_STREAM) 
     # Bind the socket to the port
-    server_address = (TCP_IP, PORT)
+    server_address = (QUISK_IP, PORT)
     sock.connect(server_address)
     sock.sendall("F " + freq + '\n')
     # Look for the response
@@ -74,25 +75,52 @@ def setfreq(PORT, freq):
         data = sock.recv(16)
         amount_received += len(data)
     sock.close()
+    print ("Odpowiedz z Quisk: ")
+    print (data)
     return data
+
+def getmode(SERVER, PORT, MESSAGE):
+   sock = socket.socket(socket.AF_INET, 
+                    socket.SOCK_STREAM) 
+   server_address = (SERVER, PORT)
+   sock.connect(server_address)
+   sock.sendall(MESSAGE)
+   amount_received = 0
+   amount_expected = 9
+   while amount_received < amount_expected:
+        data = sock.recv(16)
+        amount_received += len(data)
+   sock.close()
+   print ("odebrane mode: ")
+   print (data)
+   return data
+
+def setmode():
+   mode_all = getmode(RIG_IP, RIG_PORT, "m\n")
+   mode = mode_all[0:3]
+   filter = mode_all[4:8]
+   print ("mode = ")
+   print (mode)
+   print ("filte = ")
+   print (filter)
+
+
+
 
 while forever:
     time.sleep(0.2)
-    rig_freq = getfreq(RIG_PORT)
+    rig_freq = getfreq(RIG_IP, RIG_PORT, "f\n")
     if rig_freq != old_rig_freq:
-        rc = setfreq(GQRX_PORT, rig_freq)
-        print >>sys.stderr, 'Return Code from GQRX: "%s"' % rc
+        rc = setfreq(QUISK_PORT, rig_freq)
+        print >>sys.stderr, 'Return Code from QUISK: "%s"' % rc
         old_rig_freq = rig_freq
         old_gqrx_freq = rig_freq
         
-    gqrx_freq = getfreq(GQRX_PORT)
+    gqrx_freq = getfreq(QUISK_IP, QUISK_PORT, "f\n")
     if gqrx_freq != old_gqrx_freq:
         rc = setfreq(RIG_PORT, gqrx_freq)
         print >>sys.stderr, 'Return Code from Hamlib: "%s"' % rc
         old_gqrx_freq = gqrx_freq
         old_rig_freq = gqrx_freq
-
-
-
-
-
+    getmode(RIG_IP, RIG_PORT, "m\n")
+    setmode()
